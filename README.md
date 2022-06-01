@@ -2,6 +2,8 @@
 
 Source code of our KDD 2022 paper: Predicting Opinion Dynamics via Sociologically-Informed Neural Networks [[Link to the paper]()]
 
+![SINN-overview](https://raw.githubusercontent.com/mayaokawa/opinion_dynamics/blob/main/image/SINN_overview.pdf)
+
 ## Requirements
 * Python 3.9
 * numpy==1.19.5
@@ -127,7 +129,7 @@ We provide sample real data in working/. But you can also query the dataset via 
 - To specify the parameters, run
 ```
 python3 main_sinn.py \
-   --method Proposed \
+   --method SINN \
    --dataset sample_twitter_Abortion \
    --save_dir output/ \
    --num_hidden_layers 7 \
@@ -136,12 +138,12 @@ python3 main_sinn.py \
    --beta 0.1 \
    --lr 0.001 \
    --K 1 \
-   --type_odm DeGroot \
+   --type_odm Powerlaw
 ```
 
-- `method`: str (default=Proposed)
+- `method`: str (default=SINN)
 
-   Options are "Voter", "DeGroot", "AsLM", "SLANT", "SLANT+", "NN", "Proposed"
+   Options are "Voter", "DeGroot", "AsLM", "SLANT", "SLANT+", "NN", "SINN"
 
 - `dataset`: str (default=synthetic_consensus)
 
@@ -168,15 +170,15 @@ python3 main_sinn.py \
    If True, then use profile descriptions of Twitter users as input of the neural network. 
 
 
-- To visualize evaluation results, run ```plot_result.py``` file.  
+- To visualize evaluation results, run ```plotting.py``` file.  
 
   ```
-  python3 plot_result.py 
+  python3 plotting.py 
   ``` 
 
 ## Citation
 
-If used, please cite the following paper: 
+If you use this code or data, please cite the following paper: 
 
 ```
 @inproceedings{okawa2022sinn,
