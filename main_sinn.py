@@ -42,7 +42,7 @@ p.add_argument('--K', type=int, default=1,
                help='dimension of latent space $K\in\{1,2,3\}$. ')
 p.add_argument('--type_odm', type=str, default="Powerlaw",
                help='Options are "DeGroot", "Powerlaw", "BCM", "FJ"')
-p.add_argument('--flag_profile', type=strtobool, default=False)
+p.add_argument('--use_profile', type=strtobool, default=False)
 p.add_argument('--activation_func', type=str, default='tanh',
                help='Options are "sigmoid", "tanh", "relu", "selu", "softplus", "elu"')
 opt = p.parse_args()
@@ -174,7 +174,7 @@ def evaluate(model, sequence, train_sequence, num_users, initial_u, batch_size, 
     return res_df
 
 
-def prediction(flag_profile, dataloader, model, batch_size, nclasses):
+def prediction(use_profile, dataloader, model, batch_size, nclasses):
 
     model.train = False
     dfs = []
@@ -198,12 +198,12 @@ def prediction(flag_profile, dataloader, model, batch_size, nclasses):
              if test_ui.shape[0]==zu_pred.shape[0]:
                 zu_tmpdf = pd.DataFrame(data = np.c_[test_ui[:,np.newaxis], zu_pred], columns=["user"]+list(range(zu_pred.shape[1]))) 
                 zu_dfs.append(zu_tmpdf)
-         if flag_profile:
+         if use_profile:
              att_pred = model_output['attention'].detach().numpy()[:,:,0]
              att_tmpdf = pd.DataFrame(data = np.c_[test_ui[:,np.newaxis], att_pred], columns=["user"]+list(range(25))) 
              att_dfs.append(att_tmpdf)
     res_df = pd.concat(dfs)
-    if flag_profile:
+    if use_profile:
         att_df = pd.concat(att_dfs)
     else:
         att_df = None
@@ -219,22 +219,14 @@ def prediction(flag_profile, dataloader, model, batch_size, nclasses):
 
 def main_sinn(data_type, method, root_path):
 
-    epochs_til_ckpt = 5000 
-    steps_til_summary = 5000
-
     batch_size = opt.batch_size
-    hidden_features = opt.hidden_features
-    num_hidden_layers = opt.num_hidden_layers
-    alpha = opt.alpha
-    beta = opt.beta
-    num_epochs = opt.num_epochs
-    lr = opt.lr
-    K = opt.K
-    type_odm = opt.type_odm
-    activation_func = opt.activation_func
-    flag_profile = opt.flag_profile 
+    use_profile = opt.use_profile 
 
-    if not "twitter" in data_type: flag_profile = False
+    str_params = str(opt.hidden_features)+"_"+str(opt.num_hidden_layers)+"_"+str(opt.alpha)+"_"+str(opt.beta)+"_"+opt.type_odm
+    outdir = os.path.join(root_path, str_params)
+    if not os.path.exists(outdir): os.makedirs(outdir)
+
+    if not "twitter" in data_type: use_profile = False
     
     ###############################################################################
     # Load data
@@ -251,11 +243,9 @@ def main_sinn(data_type, method, root_path):
     
     num_users = int(1 + np.max(sequence[:,0]))
     initial_u = initial_u[:num_users]
-    #print("# of users:", num_users, df["user_id"].max())
-    #print("# of data points (Positive/Neutral/Negative):", len(df), len(df[df["opinion"]>0.]), len(df[df["opinion"]==0.]), len(df[df["opinion"]<0.]))
     print("Finished loading dataset")
 
-    if flag_profile:
+    if use_profile:
         profiles = np.load("working/hidden_state_profile_"+data_type+".npz")['hidden_state'] 
     else:
         profiles = None
@@ -289,8 +279,6 @@ def main_sinn(data_type, method, root_path):
         _method = voter
     elif method == 'DeGroot':
         _method = degroot
-    elif method == 'Flocking':
-        _method = flocking
     elif method == 'NN':
         _method = nn
     elif method=="AsLM": 
@@ -301,18 +289,17 @@ def main_sinn(data_type, method, root_path):
         _method = slant_plus
     elif method=="SINN":
         _method = sinn
-
-    model = _method.model(type=activation_func, method=type_odm, out_features=num_users, hidden_features=hidden_features, 
-                          num_hidden_layers=num_hidden_layers, alpha=alpha, beta=beta, K=K, df_profile=profiles, nclasses=nclasses, dataset=data_type)
+    model = _method.model(type=opt.activation_func, method=opt.type_odm, out_features=num_users, hidden_features=opt.hidden_features, 
+                          num_hidden_layers=opt.num_hidden_layers, alpha=opt.alpha, beta=opt.beta, K=opt.K, 
+                          df_profile=profiles, nclasses=nclasses, dataset=data_type)
     #model.cuda()
 
     ###############################################################################
     # Training 
     ###############################################################################
-    if method!='Voter' and method!='Flocking' and method!='HM':
-        training.train(model=model, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=num_epochs, lr=lr,
-                   steps_til_summary=steps_til_summary, epochs_til_checkpoint=epochs_til_ckpt, 
-                   model_dir=root_path, loss_fn=_method.loss_function, method=method, input_sequence=sequence)
+    if method!='Voter':
+        training.train(model=model, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr,
+                       loss_fn=_method.loss_function, method=method, input_sequence=sequence)
 
     model.eval()
 
@@ -320,35 +307,22 @@ def main_sinn(data_type, method, root_path):
     # Evaluation
     ###############################################################################
 
-    if "synthetic" in data_type: 
-        for param in model.state_dict().keys(): 
-            if "net" in param: continue 
-            if "weight" in param: continue 
-            #print(param, model.state_dict()[param].numpy()[0])
-    
-    if type_odm=="External": 
-        arr_times = np.linspace(0.,1.,200,endpoint=True)
-        X = torch.reshape(torch.tensor(arr_times, dtype=torch.float32), (-1,1))
-        At = model.func_A(X).detach().numpy().flatten()
-        df_At =  pd.DataFrame({"time": arr_times, "At": At})   
-        df_At.to_csv(root_path+"/At_"+method+".csv", index=False)
-
-    if "SLANT" in method or method=="HM" or method=="AsLM": 
+    if "SLANT" in method or method=="AsLM": 
         test_res = evaluate(model, sequence, train_sequence, num_users, initial_u, batch_size, nclasses, val_period)
     else:
-        test_res, att_res, zu_res = prediction(flag_profile, test_dataloader, model, batch_size, nclasses)
+        test_res, att_res, zu_res = prediction(use_profile, test_dataloader, model, batch_size, nclasses)
         if not zu_res is None:
-            zu_res.to_csv(root_path+"/interaction_predicted_"+method+".csv", index=False)
+            zu_res.to_csv(outdir+"/interaction_predicted_"+method+".csv", index=False)
 
-    test_res.to_csv(root_path+"/test_predicted_"+method+".csv", index=False)
-    if flag_profile: 
-        att_res.to_csv(root_path+"/attention_predicted_"+method+".csv", index=False)
+    test_res.to_csv(outdir+"/test_predicted_"+method+".csv", index=False)
+    if use_profile: 
+        att_res.to_csv(outdir+"/attention_predicted_"+method+".csv", index=False)
 
-    train_res, _, _ = prediction(flag_profile, train_dataloader, model, batch_size, nclasses)
-    train_res.to_csv(root_path+"/train_predicted_"+method+".csv", index=False)
+    train_res, _, _ = prediction(use_profile, train_dataloader, model, batch_size, nclasses)
+    train_res.to_csv(outdir+"/train_predicted_"+method+".csv", index=False)
 
-    val_res, _, _ = prediction(flag_profile, val_dataloader, model, batch_size, nclasses)
-    val_res.to_csv(root_path+"/val_predicted_"+method+".csv", index=False)
+    val_res, _, _ = prediction(use_profile, val_dataloader, model, batch_size, nclasses)
+    val_res.to_csv(outdir+"/val_predicted_"+method+".csv", index=False)
 
     mae = (test_res["pred"]-test_res["gt"]).abs()
     print('#######################################')
@@ -364,11 +338,10 @@ def main_sinn(data_type, method, root_path):
 
 
 if __name__ == "__main__":
-    logging_root = opt.save_dir
 
-    outdir = os.path.join(logging_root, opt.dataset)
-    if not os.path.exists(outdir): os.makedirs(outdir)
+    logging_root = os.path.join(opt.save_dir, opt.dataset)
+    if not os.path.exists(logging_root): os.makedirs(logging_root)
 
-    main_sinn(opt.dataset, opt.method, outdir)
+    main_sinn(opt.dataset, opt.method, logging_root)
 
 

@@ -165,7 +165,7 @@ python3 main_sinn.py \
 
 - `type_odm` specifies the choice of opinion dynamics model.  
 
-- `flag_profile`: bool (default=False) 
+- `use_profile`: bool (default=False) 
 
    If True, then use profile descriptions of Twitter users as input of the neural network. 
 

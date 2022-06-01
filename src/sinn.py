@@ -42,7 +42,7 @@ def loss_function(model_output, gt, loss_definition="CE"):
     gt_latent_opinion = gt['opinion']
     pred_latent_opinion = model_output['opinion']
     regularizer_constraint = model_output['regularizer']
-    pde_constraints = model_output['pde_constraints']
+    pde_constraint = model_output['pde_constraint']
 
     pred_opinion_label = model_output['opinion_label']
     data_loss = loss_func(pred_opinion_label, gt_latent_opinion[:,0].long())
@@ -51,19 +51,10 @@ def loss_function(model_output, gt, loss_definition="CE"):
     # Exp      # Lapl
     # -----------------
     return {'data_loss': data_loss, # * 1e2,
-            'pde_constraint': pde_constraints.mean(),
+            'pde_constraint': pde_constraint.mean(),
             'regularizer_constraint': regularizer_constraint.mean()
            }
 
-
-def combine(X, Y): 
-    X1 = X.unsqueeze(0)
-    Y1 = Y.unsqueeze(1)
-    X2 = X1.repeat(Y.shape[0],1)
-    Y2 = Y1.repeat(1,X.shape[0])
-    X3 = torch.reshape(X2, (-1,1))
-    Y3 = torch.reshape(Y2, (-1,1))
-    return X3, Y3
 
 
 def gumbel_softmax(logits, temperature=0.2):
@@ -88,16 +79,16 @@ class model(MetaModule):
 
         profiles = kwargs["df_profile"]
         if profiles is None:
-            flag_profile = False
+            use_profile = False
         else:
-            flag_profile = True
+            use_profile = True
             profiles = profiles.reshape(-1,25,768)
             self.profiles = torch.from_numpy(np.array(profiles, dtype=np.float32)).clone()
 
-        self.flag_profile = flag_profile
+        self.use_profile = use_profile
 
         self.net = MLPNet(in_features=2, num_users=out_features, out_features=1, num_hidden_layers=num_hidden_layers,
-                          hidden_features=hidden_features, outermost_linear=type, nonlinearity=type, flag_profile=flag_profile)
+                          hidden_features=hidden_features, outermost_linear=type, nonlinearity=type, use_profile=use_profile)
         self.val2label = nn.Linear(1, nclasses)
 
 
@@ -136,98 +127,92 @@ class model(MetaModule):
         times = model_input['ti']
         uids = model_input['ui']
 
-        if self.flag_profile:
+        if self.use_profile:
             profs = torch.index_select(self.profiles,0,uids[:,0])
             output, attention = self.net(times, uids, profs)
         else:
             output = self.net(times, uids)
             attention = None
 
-        users_j = torch.arange(self.out_features)
-        if self.training or not "synthetic" in self.dataset or not self.method=="Powerlaw":
+        opinion_label = self.val2label(output)
+
+
+        consensus_z = None 
+        if self.training:
+            users_j = torch.arange(self.out_features)
             ntau = 1
             taus_j = torch.rand(ntau)  
             users = users_j.unsqueeze(1)
             taus = taus_j.repeat(users.shape[0],1)
             grad_taus_j = taus_j.unsqueeze(1).requires_grad_(True)
-        else:
-            taus_j = times[:,0]
-            ntau = len(taus_j)
-            taus, users = combine(taus_j, users_j)
-            grad_taus_j = taus.requires_grad_(True) 
 
-        if self.flag_profile:
-            _profs = torch.index_select(self.profiles,0,users[:,0])
-            _fuv, _ = self.net(taus, users, _profs)
-        else:
-            _fuv = self.net(taus, users)
+            if self.use_profile:
+                _profs = torch.index_select(self.profiles,0,users[:,0])
+                _fuv, _ = self.net(taus, users, _profs)
+            else:
+                _fuv = self.net(taus, users)
 
-        user_id = torch.randint(self.out_features-1, (1,1))
-        fuv = torch.transpose(torch.reshape(_fuv, (self.out_features, ntau)), 1, 0)
+            user_id = torch.randint(self.out_features-1, (1,1))
+            fuv = torch.transpose(torch.reshape(_fuv, (self.out_features, ntau)), 1, 0)
 
-        if self.training or not "synthetic" in self.dataset or not self.method=="Powerlaw":
-            if self.flag_profile:
+            if self.use_profile:
                 _profs = torch.index_select(self.profiles,0,user_id[:,0])
                 fu, _ = self.net(grad_taus_j, user_id, _profs)
             else:
                 fu = self.net(grad_taus_j, user_id)
+            _users = torch.transpose(torch.reshape(users, (self.out_features, ntau)), 1, 0)
+
+            initial_opinion_gt = torch.index_select(model_input['initial'][:1,:], 1, user_id[:,0]) 
+
+            if self.method=="DeGroot":
+                h0 = torch.index_select(torch.abs(self.h0),0,user_id[:,0])
+                h1 = torch.index_select(torch.abs(self.h1),0,users_j)
+                Wuv = torch.matmul(h0, torch.transpose(h1,1,0))
+                gt = ( Wuv * fuv ).sum(-1)
+
+                regularizer = self.beta * (torch.norm(h0) + torch.norm(h1))
+
+            if self.method=="BCM":
+                mu = torch.abs(self.mu)
+                dist = torch.abs(fu - fuv)
+
+                sigma = torch.abs(self.sigma)
+                consensus_threshold = torch.abs(self.consensus_threshold)
+                consensus_condition = torch.sigmoid( sigma*(consensus_threshold - dist) )
+                gt = mu * consensus_condition * (fu - fuv) 
+                gt = gt.sum(-1)
+                regularizer = self.beta * (torch.norm(sigma) + torch.norm(mu)) 
+
+            if self.method=="Powerlaw":
+                mu = torch.abs(self.mu)
+                dist = torch.abs(fu - fuv)
+                pij = (dist + 1e-12).pow(self.rho)
+                consensus_z = self.sampling(pij)
+                gt = consensus_z * (fu - fuv)
+                gt = gt.sum(-1)
+
+                regularizer = self.beta * torch.norm(mu)
+
+            if self.method=="Mix":
+                dist = torch.abs(fu - fuv)
+                su = torch.gather(self.su,0,user_id[:,0])
+                gt = torch.abs(su) * fuv.sum(-1)
+                regularizer = self.beta * (torch.norm(su))
+
+            if self.method=="FJ":
+                su = torch.gather(self.su,0,user_id[:,0])
+                su = torch.abs(su)
+                gt = su * fuv.sum(-1) + (1.-su) * initial_opinion_gt - fu 
+                regularizer = self.beta * (torch.norm(su))
+            gt = torch.reshape(gt, (-1,ntau))
+
+            pde_constraints = gradients_mse(grad_taus_j, fu, gt)
+            pde_constraint = self.alpha * pde_constraints
         else:
-            fu = torch.index_select(fuv, 1, users_j)
-        _users = torch.transpose(torch.reshape(users, (self.out_features, ntau)), 1, 0)
-
-        initial_opinion_gt = torch.index_select(model_input['initial'][:1,:], 1, user_id[:,0]) 
-
-        if self.method=="DeGroot":
-            h0 = torch.index_select(torch.abs(self.h0),0,user_id[:,0])
-            h1 = torch.index_select(torch.abs(self.h1),0,users_j)
-            Wuv = torch.matmul(h0, torch.transpose(h1,1,0))
-            gt = ( Wuv * fuv ).sum(-1)
-
-            regularizer = self.beta * (torch.norm(h0) + torch.norm(h1))
-
-        if self.method=="BCM":
-            mu = torch.abs(self.mu)
-            dist = torch.abs(fu - fuv)
-
-            sigma = torch.abs(self.sigma)
-            consensus_threshold = torch.abs(self.consensus_threshold)
-            consensus_condition = torch.sigmoid( sigma*(consensus_threshold - dist) )
-            gt = mu * consensus_condition * (fu - fuv) 
-            gt = gt.sum(-1)
-            regularizer = self.beta * (torch.norm(sigma) + torch.norm(mu)) 
+            pde_constraint = torch.zeros(1)
+            regularizer = torch.zeros(1)
 
 
-        consensus_z = None 
-        if self.method=="Powerlaw":
-            mu = torch.abs(self.mu)
-            dist = torch.abs(fu - fuv)
-            pij = (dist + 1e-12).pow(self.rho)
-            consensus_z = self.sampling(pij)
-            gt = consensus_z * (fu - fuv)
-            gt = gt.sum(-1)
-
-            regularizer = self.beta * torch.norm(mu)
-
-        if self.method=="Mix":
-            dist = torch.abs(fu - fuv)
-            su = torch.gather(self.su,0,user_id[:,0])
-            gt = torch.abs(su) * fuv.sum(-1)
-            regularizer = self.beta * (torch.norm(su))
-
-        if self.method=="FJ":
-            su = torch.gather(self.su,0,user_id[:,0])
-            su = torch.abs(su)
-            gt = su * fuv.sum(-1) + (1.-su) * initial_opinion_gt - fu 
-            regularizer = self.beta * (torch.norm(su))
-
-
-        gt = torch.reshape(gt, (-1,ntau))
-
-        pde_constraints = gradients_mse(grad_taus_j, fu, gt)
-        pde_constraint = self.alpha * pde_constraints
-
-        opinion_label = self.val2label(output)
-
-        return {'opinion': output, 'opinion_label': opinion_label, 'pde_constraints': pde_constraints, 
+        return {'opinion': output, 'opinion_label': opinion_label, 'pde_constraint': pde_constraint, 
                 'regularizer': regularizer, 'attention': attention, 'zu': consensus_z}
 
