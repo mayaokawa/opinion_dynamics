@@ -1,19 +1,9 @@
-import csv
-import glob
-import math
-import os
-
-import matplotlib.colors as colors
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
 from torch import nn
 from torchmeta.modules import (MetaModule, MetaSequential)
-from collections import OrderedDict
-import math
-import torch.nn.functional as F
 
 
 class model(MetaModule):
@@ -27,8 +17,6 @@ class model(MetaModule):
         print(self)
 
     def forward(self, model_input, params=None):
-        if params is None:
-            params = OrderedDict(self.named_parameters())
 
         times = model_input['ti']
         uids = model_input['ui']

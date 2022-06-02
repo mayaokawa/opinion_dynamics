@@ -1,19 +1,9 @@
-import csv
-import glob
-import math
-import os
-
-import matplotlib.colors as colors
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
 from torch import nn
 from torchmeta.modules import (MetaModule, MetaSequential)
-from collections import OrderedDict
-import math
-import torch.nn.functional as F
 
 
 class model(MetaModule):
@@ -39,8 +29,6 @@ class model(MetaModule):
                             bidirectional=False)
 
     def forward(self, model_input, params=None):
-        if params is None:
-            params = OrderedDict(self.named_parameters())
 
         history = model_input['history']
         uj = history[:,:,0].long()

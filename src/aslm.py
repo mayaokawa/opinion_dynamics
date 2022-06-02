@@ -1,19 +1,10 @@
-import csv
-import glob
-import math
 import os
-
-import matplotlib.colors as colors
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
 from torch import nn
 from torchmeta.modules import (MetaModule, MetaSequential)
-from collections import OrderedDict
-import math
-import torch.nn.functional as F
 
 
 class model(MetaModule):
@@ -25,7 +16,6 @@ class model(MetaModule):
         self.num_users = num_users
         self.beta = kwargs["beta"]
 
-        #self.W = nn.Parameter(torch.diag(torch.ones(num_users)))
         self.W = nn.Parameter(torch.rand(num_users,num_users)/num_users)
         #print(self)
 
