@@ -18,12 +18,12 @@ import torch.nn.functional as F
 
 class model(MetaModule):
 
-    def __init__(self, out_features=1, type='relu', method=None,
+    def __init__(self, num_users=1, type='relu', 
                  hidden_features=256, num_hidden_layers=3, **kwargs):
         super().__init__()
 
-        self.A = nn.Embedding(out_features, 5)
-        self.lamda = nn.Embedding(out_features, 5)
+        self.A = nn.Embedding(num_users, 5)
+        self.lamda = nn.Embedding(num_users, 5)
         print(self)
 
     def forward(self, model_input, params=None):

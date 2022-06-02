@@ -18,22 +18,22 @@ import torch.nn.functional as F
 
 class model(MetaModule):
 
-    def __init__(self, out_features=1, type='relu', method=None,
+    def __init__(self, num_users=1, type='relu', 
                  hidden_features=256, num_hidden_layers=3, **kwargs):
         super().__init__()
 
-        self.A0 = nn.Embedding(out_features, 1)
-        self.A1 = nn.Embedding(out_features, 1)
-        self.B0 = nn.Embedding(out_features, 1)
-        self.B1 = nn.Embedding(out_features, 1)
-        self.C0 = nn.Embedding(out_features, 1)
-        self.C1 = nn.Embedding(out_features, 1)
-        self.out_features = out_features
+        self.A0 = nn.Embedding(num_users, 1)
+        self.A1 = nn.Embedding(num_users, 1)
+        self.B0 = nn.Embedding(num_users, 1)
+        self.B1 = nn.Embedding(num_users, 1)
+        self.C0 = nn.Embedding(num_users, 1)
+        self.C1 = nn.Embedding(num_users, 1)
+        self.num_users = num_users
 
         self.nu = nn.Parameter(0.05*torch.rand(1,1))
         self.w = nn.Parameter(0.05*torch.rand(1,1))
-        self.alpha = nn.Parameter(torch.rand(out_features))
-        self.beta = nn.Parameter(torch.rand(out_features))
+        self.alpha = nn.Parameter(torch.rand(num_users))
+        self.beta = nn.Parameter(torch.rand(num_users))
         self.sigmoid = nn.Sigmoid()
         self.lstm = nn.LSTM(input_size=1, 
                             hidden_size=1, 
@@ -57,7 +57,7 @@ class model(MetaModule):
         alphai = torch.index_select(self.alpha,0,ui[:,0]).unsqueeze(-1)
         betai = torch.index_select(self.beta,0,ui[:,0]).unsqueeze(-1)
 
-        users_j = torch.arange(self.out_features)
+        users_j = torch.arange(self.num_users)
 
         A0 = self.A0(ui[:,0]).abs()
         A1 = self.A1(users_j).abs()

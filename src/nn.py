@@ -20,24 +20,13 @@ from modules import MLPNet
 loss_func = nn.CrossEntropyLoss()
 
 
-def loss_function(model_output, gt, loss_definition="CE"):
-    '''
-       x: batch of input coordinates
-       y: usually the output of the trial_soln function
-       '''
+def loss_function(model_output, gt):
+
     gt_latent_opinion = gt['opinion']
     pred_latent_opinion = model_output['opinion']
 
-
-    if loss_definition=="MAE":
-
-        data_losses = (pred_latent_opinion - gt_latent_opinion).pow(2)
-        data_loss = data_losses.mean() 
-
-    elif loss_definition=="CE":
-
-        pred_opinion_label = model_output['opinion_label']
-        data_loss = loss_func(pred_opinion_label, gt_latent_opinion[:,0].long())
+    pred_opinion_label = model_output['opinion_label']
+    data_loss = loss_func(pred_opinion_label, gt_latent_opinion[:,0].long())
 
 
     # Exp      # Lapl
@@ -48,11 +37,10 @@ def loss_function(model_output, gt, loss_definition="CE"):
 
 class model(MetaModule):
 
-    def __init__(self, out_features=1, type='relu', 
-                 method='ODE-DeGroot', hidden_features=256, num_hidden_layers=3, nclasses=None, **kwargs):
+    def __init__(self, num_users=1, type='relu', 
+                 hidden_features=256, num_hidden_layers=3, nclasses=None, **kwargs):
         super().__init__()
-        self.method = method
-        self.out_features = out_features
+        self.num_users = num_users
 
         profiles = kwargs["df_profile"]
         if profiles is None:
@@ -63,8 +51,8 @@ class model(MetaModule):
             self.profiles = torch.from_numpy(profiles.astype(np.float32)).clone() 
         self.flag_profile = flag_profile
 
-        self.net = MLPNet(in_features=2, num_users=out_features, out_features=1, num_hidden_layers=num_hidden_layers,
-                          hidden_features=hidden_features, outermost_linear=type, nonlinearity=type, flag_profile=flag_profile)
+        self.net = MLPNet(num_users=num_users, num_hidden_layers=num_hidden_layers,
+                          hidden_features=hidden_features, outermost_linear=type, nonlinearity=type)
         self.val2label = nn.Linear(1, nclasses)
 
         #print(self)

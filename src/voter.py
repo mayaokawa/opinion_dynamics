@@ -18,13 +18,13 @@ import torch.nn.functional as F
 
 class model(MetaModule):
 
-    def __init__(self, out_features=1, type='relu', method=None,
+    def __init__(self, num_users=1, type='relu', 
                  hidden_features=256, num_hidden_layers=3, **kwargs):
         super().__init__()
 
-        A = torch.ones(out_features,out_features)
-        self.A = A / out_features 
-        self.out_features = out_features
+        A = torch.ones(num_users,num_users)
+        self.A = A / num_users 
+        self.num_users = num_users
         #print(self)
 
     def forward(self, model_input, params=None):
@@ -34,7 +34,7 @@ class model(MetaModule):
         previous = model_input['previous']
         uids = model_input['ui']
 
-        uid = torch.randint(self.out_features-1, uids.shape)
+        uid = torch.randint(self.num_users-1, uids.shape)
         output = torch.gather(previous,1,uid)
         
         return {'opinion': output}

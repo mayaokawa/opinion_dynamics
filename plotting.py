@@ -37,33 +37,6 @@ def calc_label_error(pred_label, truth_label, nclasses):
     cm = confusion_matrix(truth_label, pred_label, labels=range(nclasses))
     return acc, f1, recall, cm 
 
-def calc_error(pred, truth):
-    pred = pred.fillna(5.).clip(lower=-5.,upper=5.)
-    maes = (pred-truth).abs()
-
-    sign_truth = np.sign(truth-0.5)
-    sign_pred = np.sign(truth-0.5)
-    fr = np.mean( sign_pred != sign_truth )
-
-    return maes.mean(), maes.var(), fr
-
-
-def find_best_nll(search_dir, nclasses, _method="SINN", return_dir=False):
-    files = glob.glob(outdir+dataset+"/"+search_dir+"/val_predicted_"+_method+".csv")
-    best_val_nll = -9999
-    for fname in files: 
-        tmpdf = pd.read_csv(fname)
-        _, val_nll, _, _ = calc_label_error(tmpdf["pred_label"], tmpdf["gt"], nclasses)
-        if best_val_nll<val_nll: 
-            best_val_nll = val_nll 
-            tmpbest_dir = fname.split("/")[-3] + "/" + fname.split("/")[-2]
-    tmpdf = pd.read_csv(outdir+dataset+"/"+tmpbest_dir+"/test_predicted_"+_method+".csv")
-    test_acc, test_nll, _, _ = calc_label_error(tmpdf["pred_label"], tmpdf["gt"], nclasses)
-    if return_dir:
-        return tmpbest_dir
-    else:
-        return test_nll 
-
 
 def visualize_hist(test_res, dataset, nclasses):
 
@@ -192,7 +165,7 @@ def date_linspace(start, end, steps):
   return start + increments
 
 
-datasets = ["synthetic_consensus","synthetic_clustering","synthetic_polarization"]
+datasets = ["synthetic_consensus","synthetic_clustering","synthetic_polarization","sample_twitter_Abortion"]
 #datasets = ["twitter_BlackLivesMatter","twitter_Abortion","reddit_politics"]
 dataset_names = {"synthetic_consensus": "Consensus", "synthetic_clustering": "Clustering", "synthetic_polarization": "Polarization", 
                  "twitter_BlackLivesMatter":"Twitter BLM","twitter_Abortion":"Twitter Abortion",
@@ -213,27 +186,19 @@ bins5 = np.linspace(val_period,1.,11,endpoint=True)
 markers = ["x",".","*","d","P","^","x","o","+"]
 outdir = "output/"
 
-best_dir = {}
 best_dir_acc = {}
 for method in methods: 
     for dataset in datasets: 
-        best_val_nll = 9999
         best_val_acc = -9999
-        files = glob.glob(outdir+dataset+"/"+str(size_users[-1])+"_*/*/val_predicted_"+method+".csv")
+        files = glob.glob(outdir+dataset+"/*/val_predicted_"+method+".csv")
         for fname in files: 
             tmpdf = pd.read_csv(fname)
-            val_nll, _, _ = calc_error(tmpdf["pred"], tmpdf["gt"])
-            if best_val_nll>val_nll: 
-                best_val_nll = val_nll 
-                best_dir[(dataset,method)] = fname.split("/")[-3] + "/" + fname.split("/")[-2] 
-
             _, val_acc, _, _ = calc_label_error(tmpdf["pred_label"], tmpdf["gt"], nclasses[dataset])
             if best_val_acc<val_acc: 
                 best_val_acc = val_acc 
-                best_dir_acc[(dataset,method)] = fname.split("/")[-3] + "/" + fname.split("/")[-2] 
-
-print(best_dir)
+                best_dir_acc[(dataset,method)] = fname.split("/")[-2] 
 print(best_dir_acc)
+
 
 ################################
 ###      Overall results     ###
@@ -251,11 +216,6 @@ for dataset in datasets:
     recalls[dataset] = {}
     f1s[dataset] = {}
     for method in methods: 
-        test_res = pd.read_csv(outdir+dataset+"/"+best_dir[(dataset,method)]+"/test_predicted_"+method+".csv")
-        mae, mae_var, fr = calc_error(test_res["pred"], test_res["gt"])
-        maes[dataset][method] = mae
-        frs[dataset][method] = fr
-
         test_res = pd.read_csv(outdir+dataset+"/"+best_dir_acc[(dataset,method)]+"/test_predicted_"+method+".csv")
         acc, f1, recall, cm = calc_label_error(test_res["pred_label"], test_res["gt"], nclasses[dataset])
         accs[dataset][method] = acc
@@ -322,190 +282,13 @@ for dataset in datasets:
 
 
 for dataset in datasets: 
-    if not "synthetic" in dataset: continue
-    visualize_graph(test_res, dataset, nclasses[dataset])
-
-
-for dataset in datasets: 
     if "synthetic" in dataset: continue
     test_res = pd.read_csv(outdir+dataset+"/"+best_dir[(dataset,"NN")]+"/test_predicted_NN.csv")
     visualize_hist(test_res, dataset, nclasses[dataset])
 
-
-################################
-###   Sensitivity analysis   ###
-################################
-
-data_markers = ["o","X","^","s",".","v"]
-data_cmap = sns.color_palette("colorblind")
-linestyles = ["-","--",":","-."]
-
-
-size_units = [8,12,16]
-size_layers = [3,5,7]
-alphas = [0.1,1.0,5.0]
-betas = [0.1,1.0,5.0]
-latent_dimensions = [1,2,3]
-
-plt.figure(figsize=(3.5,2.3))
-plt.ylabel("F1")
-for idataset, dataset in enumerate(datasets): 
-    test_nlls = []
-    for size_unit in size_units: 
-        tmpbest_nll = find_best_nll(str(size_users[-1])+"_*/"+str(size_unit)+"_*_*_*_*_*_*", nclasses[dataset])
-        test_nlls.append( tmpbest_nll )
-    plt.plot(size_units, test_nlls, label=dataset_names[dataset], color=data_cmap[idataset], marker=data_markers[idataset], linestyle=linestyles[idataset], lw=2.5, ms=10)
-plt.legend(ncol=1,loc='upper right',borderpad=0.1,labelspacing=0.1,borderaxespad=0.1,columnspacing=0.1) #,handlelength=3.)
-plt.ylim(ymin=0,ymax=1.5)
-plt.xticks(size_units)
-plt.savefig("output/sensitivity_size_unit.png", bbox_inches='tight', pad_inches=0.03), plt.close()
-
-plt.figure(figsize=(3.5,2.3))
-plt.ylabel("F1")
-for idataset, dataset in enumerate(datasets): 
-    test_nlls = []
-    for size_layer in size_layers: 
-        tmpbest_nll = find_best_nll(str(size_users[-1])+"_*/*_"+str(size_layer)+"_*_*_*_*_*", nclasses[dataset])
-        test_nlls.append( tmpbest_nll )
-    plt.plot(size_layers, test_nlls, label=dataset_names[dataset], color=data_cmap[idataset], marker=data_markers[idataset], linestyle=linestyles[idataset], lw=2.5, ms=10)
-plt.legend(ncol=1,loc='upper right',borderpad=0.1,labelspacing=0.1,borderaxespad=0.1,columnspacing=0.1) #,handlelength=3.)
-plt.xticks(size_layers)
-plt.ylim(ymin=0,ymax=1.5)
-plt.savefig("output/sensitivity_size_layer.png", bbox_inches='tight', pad_inches=0.03), plt.close()
-
-
-plt.figure(figsize=(3.5,2.3))
-plt.ylabel("F1")
-for idataset, dataset in enumerate(datasets): 
-    test_nlls = []
-    for alpha in alphas: 
-        tmpbest_nll = find_best_nll(str(size_users[-1])+"_*/*_*_"+str(alpha)+"_*_*_*_*", nclasses[dataset])
-        test_nlls.append( tmpbest_nll )
-    plt.plot(alphas, test_nlls, label=dataset_names[dataset], color=data_cmap[idataset], marker=data_markers[idataset], linestyle=linestyles[idataset], lw=2.5, ms=10)
-plt.legend(ncol=1,loc='upper right',borderpad=0.1,labelspacing=0.1,borderaxespad=0.1,columnspacing=0.1) #,handlelength=3.)
-plt.ylim(ymin=0,ymax=1.5)
-plt.savefig("output/sensitivity_alpha.png", bbox_inches='tight', pad_inches=0.03), plt.close()
-
-
-plt.figure(figsize=(3.5,2.3))
-plt.ylabel("F1")
-for idataset, dataset in enumerate(datasets): 
-    test_nlls = []
-    for beta in betas: 
-        tmpbest_nll = find_best_nll(str(size_users[-1])+"_*/*_*_*_"+str(beta)+"_*_*_*", nclasses[dataset])
-        test_nlls.append( tmpbest_nll )
-    plt.plot(betas, test_nlls, label=dataset_names[dataset], color=data_cmap[idataset], marker=data_markers[idataset], linestyle=linestyles[idataset], lw=2.5, ms=10)
-plt.legend(ncol=1,loc='upper right',borderpad=0.1,labelspacing=0.1,borderaxespad=0.1,columnspacing=0.1) #,handlelength=3.)
-plt.ylim(ymin=0,ymax=1.6)
-plt.savefig("output/sensitivity_beta.png", bbox_inches='tight', pad_inches=0.03), plt.close()
-
-
-plt.figure(figsize=(3.5,2.3))
-plt.ylabel("F1")
-for idataset, dataset in enumerate(datasets): 
-    test_nlls = []
-    for latent_dimension in latent_dimensions: 
-        tmpbest_nll = find_best_nll(str(size_users[-1])+"_*/*_*_*_*_*_"+str(latent_dimension)+"_*", nclasses[dataset])
-        test_nlls.append( tmpbest_nll )
-    plt.plot(latent_dimensions, test_nlls, label=dataset_names[dataset], color=data_cmap[idataset], marker=data_markers[idataset], linestyle=linestyles[idataset], lw=2.5, ms=10)
-plt.legend(ncol=1,loc='upper right',borderpad=0.1,labelspacing=0.1,borderaxespad=0.1,columnspacing=0.1) #,handlelength=3.)
-plt.ylim(ymin=0,ymax=1.6)
-plt.savefig("output/sensitivity_latent_dimension.png", bbox_inches='tight', pad_inches=0.03), plt.close()
-
-
-
-flag_profiles = [True,False]
-for idataset, dataset in enumerate(datasets): 
-    if not "twitter" in dataset: continue
-    for flag_profile in flag_profiles: 
-        for method in ["NN","SINN"]:
-            tmpbest_nll = find_best_nll(str(size_users[-1])+"_"+str(flag_profile)+"/*_*_*_*_*_*_*", nclasses[dataset], _method=method)
-            print(method, tmpbest_nll)
-
-
-type_odms = ["DeGroot", "Powerlaw", "BCM", "FJ"]
-dummy_x = np.arange(len(type_odms)) 
-plt.figure(figsize=(3.5,2.3))
-plt.ylabel("F1")
-for idataset, dataset in enumerate(datasets): 
-    test_nlls = []
-    for type_odm in type_odms: 
-        tmpbest_nll = find_best_nll(str(size_users[-1])+"_*/*_*_*_*_*_*_"+type_odm, nclasses[dataset])
-        test_nlls.append( tmpbest_nll )
-    if "synthetic" in dataset:
-        plt.plot(dummy_x, test_nlls, label=dataset_names[dataset], color=data_cmap[idataset+3], marker=data_markers[idataset+3], linestyle=linestyles[idataset], lw=2.5, ms=10)
-    else:
-        plt.plot(dummy_x, test_nlls, label=dataset_names[dataset], color=data_cmap[idataset], marker=data_markers[idataset], linestyle=linestyles[idataset], lw=2.5, ms=10)
-type_odms[1] = "SBCM"
-plt.xticks(dummy_x, type_odms)
-plt.legend(ncol=1,borderpad=0.1,labelspacing=0.1,borderaxespad=0.1,columnspacing=0.1) #,handlelength=3.)
-#plt.margins(y=0.)
-plt.ylim(ymin=0,ymax=1.5)
-if "synthetic" in datasets[0]:
-    plt.savefig("output/sensitivity_odm_synthetic.png", bbox_inches='tight', pad_inches=0.03), plt.close()
-else:
-    plt.savefig("output/sensitivity_odm_real.png", bbox_inches='tight', pad_inches=0.03), plt.close()
-
-
-
-
-################################
-### Quantitative Evalutation ###
-################################
-
-mapes = {}
+   
 for dataset in datasets: 
-
-    print()
-    print(dataset, method)
-    dfs = {}
-    for method in methods:
-        
-        train_res = pd.read_csv(outdir+dataset+"/"+best_dir_acc[(dataset,method)]+"/train_predicted_"+method+".csv")
-        val_res = pd.read_csv(outdir+dataset+"/"+best_dir_acc[(dataset,method)]+"/val_predicted_"+method+".csv")
-        test_res = pd.read_csv(outdir+dataset+"/"+best_dir_acc[(dataset,method)]+"/test_predicted_"+method+".csv")
-        test_res["pred"] = test_res["pred"].fillna(2).clip(lower=-2.,upper=2.)
-        df_res = pd.concat([train_res, val_res, test_res]) 
-        df_res = df_res.sort_values("time")
-
-        plt.figure(figsize=(7,3.5))
-        for tmpuid in range(20): 
-            tmptime = df_res[df_res["user"]==tmpuid]["time"]
-            tmpod = df_res[df_res["user"]==tmpuid]["pred"]
-            plt.plot(np.array(tmptime), np.array(tmpod))
-        plt.vlines(x=val_period, ymin=0, ymax=1, ls='--', lw=1.5, color="grey")
-        plt.xlabel("$t$")
-        plt.ylabel("$x$")
-        #plt.ylim(-1,1)
-        plt.tight_layout()
-        plt.savefig(outdir+dataset+"/estimated_"+method+".png"), plt.close()
-
-        plt.figure(figsize=(7,3.5))
-        for tmpuid in range(20): 
-            tmptime = df_res[df_res["user"]==tmpuid]["time"]
-            tmpod = df_res[df_res["user"]==tmpuid]["gt"]
-            plt.plot(np.array(tmptime), np.array(tmpod))
-        plt.vlines(x=val_period, ymin=0, ymax=1, ls='--', lw=1.5, color="grey")
-        plt.xlabel("$t$")
-        plt.ylabel("$x$")
-        #plt.ylim(-1,1)
-        plt.tight_layout()
-        plt.savefig(outdir+dataset+"/ground_truth.png"), plt.close()
- 
-        accs = []
-        for ibin in range(len(bins5)-1): 
-            subset_res = test_res[(test_res["time"]>=bins5[ibin])&(test_res["time"]<bins5[ibin+1])]
-            _, acc, _, _ = calc_label_error(subset_res["pred_label"], subset_res["gt"], nclasses=nclasses[dataset])
-            accs.append(acc)
-        mapes[(dataset,method)] = accs  
+    if not "synthetic" in dataset: continue
+    visualize_graph(test_res, dataset, nclasses[dataset])
 
 
-        initial_dict = {}
-        for iu in df_res["user"].unique():
-            tmpop = np.array(df_res["gt"][df_res["user"]==iu])
-            initial_dict[iu] = np.sign(tmpop)[0]
-        df_res["initial"] = df_res["user"].map(initial_dict)
-
-        dfs[method] = df_res
-
-    

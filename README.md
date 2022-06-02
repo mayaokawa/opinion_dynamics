@@ -2,7 +2,7 @@
 
 Source code of our KDD 2022 paper: Predicting Opinion Dynamics via Sociologically-Informed Neural Networks [[Link to the paper]()]
 
-![SINN-overview](https://raw.githubusercontent.com/mayaokawa/opinion_dynamics/blob/main/image/SINN_overview.pdf)
+![SINN-overview](image/SINN_overview.png)
 
 ## Requirements
 * Python 3.9
@@ -112,7 +112,7 @@ We provide sample real data in working/. But you can also query the dataset via 
 
 ### Example of Usage
 
-- Training: Run ```main_sinn.py``` file to train and evaluate models with default settings for all datasets. 
+- Training: Run ```main_sinn.py``` file to train and evaluate the proposed method with default settings. 
  
   ```
   python3 main_sinn.py 
@@ -130,15 +130,16 @@ We provide sample real data in working/. But you can also query the dataset via 
 ```
 python3 main_sinn.py \
    --method SINN \
-   --dataset sample_twitter_Abortion \
+   --dataset synthetic_consensus \
    --save_dir output/ \
-   --num_hidden_layers 7 \
-   --hidden_features 12 \
+   --num_hidden_layers 5 \
+   --hidden_features 8 \
    --alpha 0.1 \
    --beta 0.1 \
+   --num_epochs 500 \
    --lr 0.001 \
    --K 1 \
-   --type_odm Powerlaw
+   --type_odm SBCM
 ```
 
 - `method`: str (default=SINN)

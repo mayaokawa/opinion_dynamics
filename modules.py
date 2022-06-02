@@ -9,8 +9,8 @@ import torch.nn.functional as F
 
 
 class MLPNet(nn.Module):
-    def __init__(self, in_features, num_users, out_features, num_hidden_layers, hidden_features,
-                 outermost_linear='sigmoid', nonlinearity='relu', flag_profile=False):
+    def __init__(self, num_users, num_hidden_layers, hidden_features, out_features=1,
+                 outermost_linear='sigmoid', nonlinearity='relu', use_profile=False):
         super(MLPNet, self).__init__()
 
         nls = {'relu': nn.ReLU(inplace=True), 
@@ -23,8 +23,8 @@ class MLPNet(nn.Module):
         nl = nls[nonlinearity]
         nl_outermost = nls[outermost_linear]
 
-        self.flag_profile = flag_profile
-        if flag_profile:
+        self.use_profile = use_profile
+        if use_profile:
             self.embed_profiles = [] 
             self.embed_profiles.append(nn.Sequential(
                 nn.Linear(768, hidden_features), nl
@@ -60,7 +60,7 @@ class MLPNet(nn.Module):
         self.embed_times = nn.Sequential(*self.embed_times)
 
         self.net = []
-        if flag_profile:
+        if use_profile:
             self.net.append(nn.Sequential(
                 nn.Linear(hidden_features*3, hidden_features), nl
             ))
@@ -84,7 +84,7 @@ class MLPNet(nn.Module):
         y = self.embed_users(users.long())
         y = torch.squeeze(y, dim=1)
 
-        if self.flag_profile: 
+        if self.use_profile: 
             z = self.embed_profiles(profs.float())
             att = self.embed_att(z)
             z = torch.mean(att*z, axis=1)
@@ -93,7 +93,7 @@ class MLPNet(nn.Module):
             combined = torch.cat([x, y], dim=-1)
         output = self.net(combined)
 
-        if self.flag_profile: 
+        if self.use_profile: 
             return output, att
         else:
             return output

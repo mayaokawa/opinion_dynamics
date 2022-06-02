@@ -40,8 +40,8 @@ p.add_argument('--lr', type=float, default=0.001,
                help='learning rate. default=0.001')
 p.add_argument('--K', type=int, default=1, 
                help='dimension of latent space $K\in\{1,2,3\}$. ')
-p.add_argument('--type_odm', type=str, default="Powerlaw",
-               help='Options are "DeGroot", "Powerlaw", "BCM", "FJ"')
+p.add_argument('--type_odm', type=str, default="SBCM",
+               help='Options are "DeGroot", "SBCM", "BCM", "FJ"')
 p.add_argument('--use_profile', type=strtobool, default=False)
 p.add_argument('--activation_func', type=str, default='tanh',
                help='Options are "sigmoid", "tanh", "relu", "selu", "softplus", "elu"')
@@ -92,11 +92,11 @@ class load_data(Dataset):
             previous.append( tmpf(times) )
         previous = np.array(previous).T
 
-        history0 = rolling_matrix(sequence[:,0])
-        history1 = rolling_matrix(sequence[:,1])
-        history2 = rolling_matrix(sequence[:,2])
+        user_history = rolling_matrix(sequence[:,0])
+        opinion_history = rolling_matrix(sequence[:,1])
+        time_history = rolling_matrix(sequence[:,2])
 
-        dT = np.stack([history0,history1,history2], axis=-1) 
+        dT = np.stack([user_history,opinion_history,time_history], axis=-1) 
         history = dT[:,:-1,:]
         model_out = dT[:,-1,:]
 
@@ -221,6 +221,7 @@ def main_sinn(data_type, method, root_path):
 
     batch_size = opt.batch_size
     use_profile = opt.use_profile 
+    num_epochs = opt.num_epochs
 
     str_params = str(opt.hidden_features)+"_"+str(opt.num_hidden_layers)+"_"+str(opt.alpha)+"_"+str(opt.beta)+"_"+opt.type_odm
     outdir = os.path.join(root_path, str_params)
@@ -289,17 +290,21 @@ def main_sinn(data_type, method, root_path):
         _method = slant_plus
     elif method=="SINN":
         _method = sinn
-    model = _method.model(type=opt.activation_func, method=opt.type_odm, out_features=num_users, hidden_features=opt.hidden_features, 
-                          num_hidden_layers=opt.num_hidden_layers, alpha=opt.alpha, beta=opt.beta, K=opt.K, 
+
+    torch.manual_seed(100)
+    model = _method.model(type=opt.activation_func, num_users=num_users, hidden_features=opt.hidden_features, 
+                          num_hidden_layers=opt.num_hidden_layers, type_odm=opt.type_odm, alpha=opt.alpha, beta=opt.beta, K=opt.K, 
                           df_profile=profiles, nclasses=nclasses, dataset=data_type)
     #model.cuda()
 
     ###############################################################################
     # Training 
     ###############################################################################
+    #print("Training network...")
     if method!='Voter':
-        training.train(model=model, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr,
+        training.train(model=model, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=num_epochs, lr=opt.lr,
                        loss_fn=_method.loss_function, method=method, input_sequence=sequence)
+    #print("Network trained...")
 
     model.eval()
 
@@ -307,6 +312,7 @@ def main_sinn(data_type, method, root_path):
     # Evaluation
     ###############################################################################
 
+    #print("Evaluating network...")
     if "SLANT" in method or method=="AsLM": 
         test_res = evaluate(model, sequence, train_sequence, num_users, initial_u, batch_size, nclasses, val_period)
     else:
@@ -335,6 +341,7 @@ def main_sinn(data_type, method, root_path):
         print("## ACC:", acc, "  F1:", f1)
     print('#######################################')
     print()
+    #print("Network evaluated....")
 
 
 if __name__ == "__main__":
