@@ -123,7 +123,13 @@ We provide sample real data in working/. But you can also query the dataset via 
 - To train all models, run the bash shell script 
 
   ```
-  run_all_methods.sh
+  ./run_all_methods.sh
+  ```
+
+- To tune hyperparameters in NN and our SINN, run the bash shell script 
+
+  ```
+  ./run_grid_search.sh
   ```
 
 - To specify the parameters, run

@@ -6,7 +6,7 @@ from torch.autograd import grad
 from torch import nn
 from torchmeta.modules import (MetaModule, MetaSequential)
 from modules import MLPNet
-
+import torch.nn.functional as F
 
 
 def gradients_mse(ode_in, ode_out, rhs):

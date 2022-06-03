@@ -16,7 +16,7 @@ class model(MetaModule):
         self.num_users = num_users
         self.beta = kwargs["beta"]
 
-        self.W = nn.Parameter(torch.rand(num_users,num_users)/num_users)
+        self.W = nn.Parameter(torch.rand(num_users,num_users))
         #print(self)
 
     def forward(self, model_input, params=None):

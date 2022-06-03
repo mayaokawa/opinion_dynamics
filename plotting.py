@@ -165,8 +165,8 @@ def date_linspace(start, end, steps):
   return start + increments
 
 
-datasets = ["synthetic_consensus","synthetic_clustering","synthetic_polarization","sample_twitter_Abortion"]
-#datasets = ["twitter_BlackLivesMatter","twitter_Abortion","reddit_politics"]
+datasets = ["synthetic_consensus","synthetic_clustering","synthetic_polarization"] #,"sample_twitter_Abortion"]
+datasets = ["synthetic_consensus"]
 dataset_names = {"synthetic_consensus": "Consensus", "synthetic_clustering": "Clustering", "synthetic_polarization": "Polarization", 
                  "twitter_BlackLivesMatter":"Twitter BLM","twitter_Abortion":"Twitter Abortion",
                  "sample_twitter_Abortion":"Twitter Abortion","reddit_politics":"Reddit Politics"} 

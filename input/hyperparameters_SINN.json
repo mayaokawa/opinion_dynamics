@@ -1,0 +1,12 @@
+[
+{"num_hidden_layer": 5, "hidden_feature": 12, "alpha": 0.1, "type_odm": "SBCM"},
+{"num_hidden_layer": 5, "hidden_feature": 12, "alpha": 0.1, "type_odm": "DeGroot"},
+{"num_hidden_layer": 5, "hidden_feature": 12, "alpha": 0.1, "type_odm": "BCM"},
+{"num_hidden_layer": 5, "hidden_feature": 12, "alpha": 0.1, "type_odm": "FJ"},
+{"num_hidden_layer": 3, "hidden_feature": 12, "alpha": 0.1, "type_odm": "SBCM"},
+{"num_hidden_layer": 7, "hidden_feature": 12, "alpha": 0.1, "type_odm": "SBCM"},
+{"num_hidden_layer": 5, "hidden_feature": 8, "alpha": 0.1, "type_odm": "SBCM"},
+{"num_hidden_layer": 5, "hidden_feature": 16, "alpha": 0.1, "type_odm": "SBCM"},
+{"num_hidden_layer": 5, "hidden_feature": 12, "alpha": 1.0, "type_odm": "SBCM"},
+{"num_hidden_layer": 5, "hidden_feature": 12, "alpha": 5.0, "type_odm": "SBCM"}
+]
