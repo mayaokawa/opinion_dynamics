@@ -195,6 +195,7 @@ def prediction(use_profile, dataloader, model, batch_size, nclasses):
          dfs.append(tmpdf)
          if 'zu' in model_output.keys() and not model_output['zu'] is None: 
              zu_pred = model_output['zu'].detach().numpy()
+             print(zu_pred.shape, test_ui.shape)
              if test_ui.shape[0]==zu_pred.shape[0]:
                 zu_tmpdf = pd.DataFrame(data = np.c_[test_ui[:,np.newaxis], zu_pred], columns=["user"]+list(range(zu_pred.shape[1]))) 
                 zu_dfs.append(zu_tmpdf)
@@ -203,6 +204,7 @@ def prediction(use_profile, dataloader, model, batch_size, nclasses):
              att_tmpdf = pd.DataFrame(data = np.c_[test_ui[:,np.newaxis], att_pred], columns=["user"]+list(range(25))) 
              att_dfs.append(att_tmpdf)
     res_df = pd.concat(dfs)
+    
     if use_profile:
         att_df = pd.concat(att_dfs)
     else:
@@ -307,6 +309,7 @@ def main_sinn(data_type, method, root_path):
     #print("Network trained...")
 
     model.eval()
+    torch.save(model.state_dict(), outdir+"/model_state_dict_"+method)
 
     ###############################################################################
     # Evaluation

@@ -148,33 +148,33 @@ python3 main_sinn.py \
    --type_odm SBCM
 ```
 
-- `method`: str (default=SINN)
+  - `method`: str (default=SINN)
 
-   Options are "Voter", "DeGroot", "AsLM", "SLANT", "SLANT+", "NN", "SINN"
+     Options are "Voter", "DeGroot", "AsLM", "SLANT", "SLANT+", "NN", "SINN"
 
-- `dataset`: str (default=synthetic_consensus)
+  - `dataset`: str (default=synthetic_consensus)
 
-   Options are "synthetic_consensus", "synthetic_clustering", "synthetic_polarization", "sample_twitter_Abortion"
+     Options are "synthetic_consensus", "synthetic_clustering", "synthetic_polarization", "sample_twitter_Abortion"
 
-- `save_dir` specifies the path to save the trained model. The model path defaults to be "./output" if not specified.
+  - `save_dir` specifies the path to save the trained model. The model path defaults to be "./output" if not specified.
 
-- `num_hidden_layers` specifies the number of layers $L$ in the neural network.
+  - `num_hidden_layers` specifies the number of layers $L$ in the neural network.
 
-- `hidden_features` specifies the number of units per layer $N_u$ in the neural network.
+  - `hidden_features` specifies the number of units per layer $N_u$ in the neural network.
 
-- `alpha` specifies the trade-off hyperparameter $\alpha$. 
+  - `alpha` specifies the trade-off hyperparameter $\alpha$. 
 
-- `beta` specifies the trade-off hyperparameter $\beta$. 
+  - `beta` specifies the trade-off hyperparameter $\beta$. 
 
-- `lr` specifies learning rate. 
+  - `lr` specifies learning rate. 
 
-- `K` specifies dimension of latent space. 
+  - `K` specifies dimension of latent space. 
 
-- `type_odm` specifies the choice of opinion dynamics model.  
+  - `type_odm` specifies the choice of opinion dynamics model.  
 
-- `use_profile`: bool (default=False) 
+  - `use_profile`: bool (default=False) 
 
-   If True, then use profile descriptions of Twitter users as input of the neural network. 
+     If True, then use profile descriptions of Twitter users as input of the neural network. 
 
 
 - To visualize evaluation results, run ```plotting.py``` file.  
@@ -182,6 +182,7 @@ python3 main_sinn.py \
   ```
   python3 plotting.py 
   ``` 
+
 
 ## Citation
 

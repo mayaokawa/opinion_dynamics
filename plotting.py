@@ -113,7 +113,7 @@ def visualize_graph(test_res, dataset, nclass=5):
                 test_zu["time"] /= test_zu["time"].max()  
             else:
                 test_res = pd.read_csv(outdir+dataset+"/"+best_dir_acc[(dataset,method)]+"/test_predicted_"+method+".csv")
-                files = glob.glob(outdir+dataset+"/*/*_Powerlaw/interaction_predicted_SINN.csv")
+                files = glob.glob(outdir+dataset+"/*_SBCM/interaction_predicted_SINN.csv")
                 test_zu = pd.read_csv(files[0])
 
             Nu = len(test_res["user"].unique())
@@ -166,7 +166,6 @@ def date_linspace(start, end, steps):
 
 
 datasets = ["synthetic_consensus","synthetic_clustering","synthetic_polarization"] #,"sample_twitter_Abortion"]
-datasets = ["synthetic_consensus"]
 dataset_names = {"synthetic_consensus": "Consensus", "synthetic_clustering": "Clustering", "synthetic_polarization": "Polarization", 
                  "twitter_BlackLivesMatter":"Twitter BLM","twitter_Abortion":"Twitter Abortion",
                  "sample_twitter_Abortion":"Twitter Abortion","reddit_politics":"Reddit Politics"} 
@@ -197,7 +196,7 @@ for method in methods:
             if best_val_acc<val_acc: 
                 best_val_acc = val_acc 
                 best_dir_acc[(dataset,method)] = fname.split("/")[-2] 
-print(best_dir_acc)
+#print(best_dir_acc)
 
 
 ################################
@@ -286,9 +285,10 @@ for dataset in datasets:
     test_res = pd.read_csv(outdir+dataset+"/"+best_dir[(dataset,"NN")]+"/test_predicted_NN.csv")
     visualize_hist(test_res, dataset, nclasses[dataset])
 
-   
+"""   
 for dataset in datasets: 
     if not "synthetic" in dataset: continue
     visualize_graph(test_res, dataset, nclasses[dataset])
+"""   
 
 

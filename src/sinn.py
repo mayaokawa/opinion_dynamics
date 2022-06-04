@@ -130,9 +130,11 @@ class model(MetaModule):
 
         ### Setup ODE constraints
         tilde_z_ut = None 
-        if self.training:
 
+        if self.training:
+            ### Sample $J$ collocation points $\{\tau_1,...,\tau_J\}$ from time domain $\tau_j\in[0,T+\Delta T]$ with $T+\Delta T = 1$
             tau_j = torch.rand(self.J).unsqueeze(1).requires_grad_(True)  
+
             users = torch.arange(self.U).unsqueeze(1)
             taus = tau_j.repeat(users.shape[0],1)
 
@@ -211,7 +213,6 @@ class model(MetaModule):
                 regularizer = self.beta * torch.norm(s_u)
 
             rhs_ode = torch.reshape(rhs_ode, (-1,self.J))
-
 
             ### Compute ODE loss $\mathcal{L}_{ode}$
             ode_constraints = gradients_mse(tau_j, x_u, rhs_ode)
